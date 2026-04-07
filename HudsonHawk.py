@@ -8,7 +8,43 @@ from mutagen.easyid3 import EasyID3
 # to assemble playlists that approach round minute lengths (or as close as possible) 
 # for user defined lengths like 10 minutes or 25 minutes (popular lengths for pomodoro timers)
 
+def _trim_playlist_to_target(playlist, target_seconds):
+    total = sum(song['duration'] for song in playlist)
+    while total > target_seconds:
+        removable = [song for song in playlist if song['duration'] < target_seconds]
+        if not removable:
+            break
+        song_to_remove = random.choice(removable)
+        playlist.remove(song_to_remove)
+        total -= song_to_remove['duration']
+    return playlist
 
+def assemble_playlist(groups, target_minutes, attempts=12):
+    target_seconds = target_minutes * 60
+    best_playlist = []
+    best_diff = float('inf')
+
+    for group in random.sample(list(groups.values()), k=len(groups)):
+        if not group:
+            continue
+        for _ in range(attempts):
+            candidates = group.copy()
+            random.shuffle(candidates)
+            current_sum = 0
+            playlist = []
+            for song in candidates:
+                if current_sum + song['duration'] <= target_seconds + 60:
+                    playlist.append(song)
+                    current_sum += song['duration']
+            if current_sum > target_seconds:
+                playlist = _trim_playlist_to_target(playlist, target_seconds)
+                current_sum = sum(song['duration'] for song in playlist)
+            diff = abs(current_sum - target_seconds)
+            if diff < best_diff or (diff == best_diff and len(playlist) > len(best_playlist)):
+                best_playlist = playlist.copy()
+                best_diff = diff
+
+    return best_playlist
 
 def get_song_info(file_path):
     ext = os.path.splitext(file_path)[1].lower()
@@ -54,28 +90,6 @@ def group_songs(songs, criteria):
             groups[key] = []
         groups[key].append(song)
     return groups
-
-def assemble_playlist(groups, target_minutes):
-    target_seconds = target_minutes * 60
-    best_playlist = []
-    best_diff = float('inf')
-    
-    for group in groups.values():
-        if not group:
-            continue
-        # Simple greedy approach: sort by duration and add until close
-        group.sort(key=lambda x: x['duration'])
-        current_sum = 0
-        playlist = []
-        for song in group:
-            if current_sum + song['duration'] <= target_seconds + 60:  # Allow some overrun
-                playlist.append(song)
-                current_sum += song['duration']
-            if abs(current_sum - target_seconds) < best_diff:
-                best_playlist = playlist.copy()
-                best_diff = abs(current_sum - target_seconds)
-        # Could optimize further, but this is basic
-    return best_playlist
 
 if __name__ == "__main__":
     library_dir = input("Enter music library directory: ")
