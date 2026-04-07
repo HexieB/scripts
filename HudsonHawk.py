@@ -1,5 +1,6 @@
 import os
 import random
+from mutagen.mp4 import MP4
 from mutagen.mp3 import MP3
 from mutagen.easyid3 import EasyID3
 
@@ -7,25 +8,42 @@ from mutagen.easyid3 import EasyID3
 # to assemble playlists that approach round minute lengths (or as close as possible) 
 # for user defined lengths like 10 minutes or 25 minutes (popular lengths for pomodoro timers)
 
+
+
 def get_song_info(file_path):
-    audio = MP3(file_path)
-    tags = EasyID3(file_path)
-    duration = audio.info.length
-    genre = tags.get('genre', ['Unknown'])[0]
-    bpm = tags.get('bpm', ['0'])[0]
-    return {
-        'path': file_path,
-        'duration': duration,
-        'genre': genre,
-        'bpm': float(bpm) if bpm.isdigit() else 0
-    }
+    ext = os.path.splitext(file_path)[1].lower()
+    try:
+        if ext == '.mp3':
+            audio = MP3(file_path)
+            tags = EasyID3(file_path)
+            genre = tags.get('genre', ['Unknown'])[0]
+            bpm = tags.get('bpm', ['0'])[0]
+        elif ext in ('.mp4', '.m4a', '.m4p'):
+            audio = MP4(file_path)
+            tags = audio.tags or {}
+            genre = tags.get('\xa9gen', ['Unknown'])[0]
+            bpm = tags.get('tmpo', [0])[0]
+        else:
+            return None
+
+        duration = audio.info.length
+        return {
+            'path': file_path,
+            'duration': duration,
+            'genre': genre,
+            'bpm': float(bpm) if str(bpm).isdigit() else 0
+        }
+    except Exception:
+        return None
 
 def scan_library(directory):
     songs = []
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith('.mp3'):
-                songs.append(get_song_info(os.path.join(root, file)))
+            if file.endswith(('.mp3', '.mp4', '.m4a', '.m4p')):
+                info = get_song_info(os.path.join(root, file))
+                if info:
+                    songs.append(info)
     return songs
 
 def group_songs(songs, criteria):
