@@ -27,7 +27,7 @@ def assemble_playlist(groups, target_minutes, attempts=12):
     for group in random.sample(list(groups.values()), k=len(groups)):
         if not group:
             continue
-        for _ in range(attempts):
+        for songs in range(attempts):
             candidates = group.copy()
             random.shuffle(candidates)
             current_sum = 0
@@ -74,7 +74,7 @@ def get_song_info(file_path):
 
 def scan_library(directory):
     songs = []
-    for root, _, files in os.walk(directory):
+    for root, folders, files in os.walk(directory):
         for file in files:
             if file.endswith(('.mp3', '.mp4', '.m4a', '.m4p')):
                 info = get_song_info(os.path.join(root, file))
